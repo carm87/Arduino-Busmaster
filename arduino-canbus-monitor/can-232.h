@@ -113,7 +113,7 @@
 
 #define LW232_STATUS_CAN_CLOSED        0x00
 #define LW232_STATUS_CAN_OPEN_NORMAL   0x01
-#define LW232_STATUS_CAN_OPEN_LISTEN   0x01
+#define LW232_STATUS_CAN_OPEN_LISTEN   0x02
 
 #define LW232_FRAME_MAX_LENGTH         0x08
 #define LW232_FRAME_MAX_SIZE           (sizeof("Tiiiiiiiildddddddddddddddd\r")+1)
