@@ -41,6 +41,12 @@
   //#define debug Serial
 #endif
 
+
+#include <Arduino.h>
+#include <U8x8lib.h>
+
+U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE); 
+
 Can232* Can232::_instance = 0;
 
 Can232* Can232::instance() {
@@ -52,10 +58,15 @@ Can232* Can232::instance() {
 void Can232::init(INT8U defaultCanSpeed, const INT8U clock) {
     dbg_begin(LW232_DEFAULT_BAUD_RATE); // logging through software serial 
     dbg1("CAN ASCII. Welcome to debug");
-
+    u8x8.begin();
+    u8x8.setFont(u8x8_font_px437wyse700b_2x2_r);
+    u8x8.drawString(0, 0, " 500Kbit");
+    u8x8.drawString(0, 3, "OPEN R/W");
+    u8x8.drawString(0, 6, "AUTOPOLL");
     instance()->lw232CanSpeedSelection = defaultCanSpeed;
     instance()->lw232McpModuleClock = clock;
     instance()->initFunc();
+        
 }
 
 void Can232::setFilter(INT8U (*userFunc)(INT32U)) {
@@ -65,6 +76,8 @@ void Can232::setFilter(INT8U (*userFunc)(INT32U)) {
 void Can232::loop() {
     instance()->loopFunc();
 }
+
+
 
 void Can232::serialEvent() {
     instance()->serialEventFunc();
@@ -99,6 +112,9 @@ void Can232::loopFunc() {
         // clear the string:
         inputString = "";
         stringComplete = false;
+
+
+       
     }
     if (lw232CanChannelMode != LW232_STATUS_CAN_CLOSED) {
         int recv = 0;
@@ -121,9 +137,73 @@ void Can232::serialEventFunc() {
     }
 }
 
+
+
+
+
+
+
 INT8U Can232::exec() {
     dbg2("Command received:", inputString);
+    int lw232CanSpeedSelection_old=lw232CanSpeedSelection;
+    int lw232AutoPoll_old=lw232AutoPoll;
+    int lw232CanChannelMode_old=lw232CanChannelMode;
+    
     lw232LastErr = parseAndRunCommand();
+    
+
+
+    if (lw232CanSpeedSelection_old!=lw232CanSpeedSelection){
+             switch (lw232CanSpeedSelection) {
+              case 2:
+              u8x8.drawString(0, 0, "  10Kbit");
+              break;
+              case 3:
+              u8x8.drawString(0, 0, "  20Kbit");
+              break;
+              case 7:
+              u8x8.drawString(0, 0, "  50Kbit");
+              break;
+              case 11:
+              u8x8.drawString(0, 0, " 100Kbit");
+              break;
+              case 12:
+              u8x8.drawString(0, 0, " 125Kbit");
+              break;
+              case 14:
+              u8x8.drawString(0, 0, " 250Kbit");
+              break;
+              case 15:
+              u8x8.drawString(0, 0, " 500Kbit");
+              break;
+              case 16:
+              u8x8.drawString(0, 0, "1000Kbit");             
+            } }
+  if (lw232CanChannelMode_old!=lw232CanChannelMode) {
+            switch (lw232CanChannelMode) {
+              case LW232_STATUS_CAN_CLOSED:
+              u8x8.drawString(0, 3, "CLOSED  ");
+              break;
+              case LW232_STATUS_CAN_OPEN_NORMAL:
+              u8x8.drawString(0, 3, "OPEN R/W");
+              break;
+              case LW232_STATUS_CAN_OPEN_LISTEN:
+              u8x8.drawString(0, 3, "OPEN R O");
+              break;
+            }  }          
+    if (lw232AutoPoll_old!=lw232AutoPoll) {
+
+    if (lw232AutoPoll_old<lw232AutoPoll) {
+  
+           u8x8.drawString(0, 6, "AUTOPOLL");
+          }
+    else     {
+              u8x8.drawString(0, 6, "--------");
+                        
+            } }
+
+
+    
     switch (lw232LastErr) {
     case LW232_OK:
         Serial.write(LW232_RET_ASCII_OK);
@@ -154,12 +234,13 @@ INT8U Can232::parseAndRunCommand() {
 
     lw232LastErr = LW232_OK;
 
-    switch (lw232Message[0]) {
+     switch (lw232Message[0]) {
         case LW232_CMD_SETUP:
         // Sn[CR] Setup with standard CAN bit-rates where n is 0-9.
         if (lw232CanChannelMode == LW232_STATUS_CAN_CLOSED) {
             idx = HexHelper::parseNibbleWithLimit(lw232Message[1], LW232_CAN_BAUD_NUM);
 			      lw232CanSpeedSelection = lw232CanBaudRates[idx];
+               
         }
         else {
             ret = LW232_ERR;
@@ -396,6 +477,10 @@ INT8U Can232::parseAndRunCommand() {
     default:
         ret = LW232_ERR_UNKNOWN_CMD;
     }
+
+
+         
+
 
     return ret;
 }
